@@ -2,12 +2,6 @@
 #
 # SPDX-License-Identifier: AGPL-3.0
 
-# I don't remember why
-# I had this shebang
-# so let's have it just in case
-# until next test
-#!/data/data/com.termux/files/usr/bin/env bash
-
 _bin="$( \
   dirname \
     "$( \
@@ -21,7 +15,7 @@ source \
 
 _root_requirements() {
   _check_cmd \
-    "su" \
+    "sudo" \
     "tsu"
 }
 
@@ -45,16 +39,14 @@ _root_get() {
           com.termux
           android.permission.DUMP
     )
-    su \
-      -c \
+    sudo \
       "${_cmd[@]}"
     _cmd=(
       /system/bin/dumpsys
         deviceidle
     )
     _value="$( \
-      su \
-        -c \
+      sudo \
         "${_cmd[@]}" | \
         grep \
           "mScreenOn=" | \
