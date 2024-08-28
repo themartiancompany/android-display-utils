@@ -20,6 +20,7 @@ install: install-scripts install-doc
 install-scripts:
 
 	install -vDm 755 android-display-utils/display-status "$(BIN_DIR)/display-status"
+	install -vDm 755 android-display-utils/display-resolution "$(BIN_DIR)/display-resolution"
 
 install-doc:
 
