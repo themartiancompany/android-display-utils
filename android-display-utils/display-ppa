@@ -139,6 +139,7 @@ Usage:
      -m <method>          Method to obtain pixels per total area.
                           Default: $(_get "get" "mode")
      -p                   Whether to get physical number of pixels
+                          per totas area.
                           Default: $(_get "physical" "size")
      -h                   This message.
      -v                   Enable verbose output
