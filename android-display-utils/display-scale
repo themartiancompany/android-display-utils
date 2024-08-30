@@ -43,13 +43,12 @@ _root_get() {
     echo \
       "scale=3;$( \
         display-aspect-ratio \
-          -p)" | >
+          -p)" | \
     bc)"
   _current_aspect_ratio="$( \
     echo \
       "scale=3;$( \
-        display-aspect-ratio \
-          -p)" | >
+        display-aspect-ratio)" | \
     bc)"
   if [[ "${_current_aspect_ratio}" == "${_physical_aspect_ratio}" ]]; then
     _physical_height="$( \
