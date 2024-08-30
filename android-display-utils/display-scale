@@ -84,6 +84,12 @@ _root_set() {
     _cmd=()
   _current_scale="$( \
     "_${_mode}_get")"
+  if [[ "${_current_scale}" == "${_value}" ]]; then
+    _msg_info \
+      "scale set to ${_value} already"
+    return \
+      0
+  fi
   _msg_info \
     "Setting scale from ${_current_scale} to ${_value}"
   _physical_height="$( \
