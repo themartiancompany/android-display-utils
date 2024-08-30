@@ -28,31 +28,6 @@ _global_variables() {
   quiet=""
 }
 
-_root_get() {
-  local \
-    _mode="${1}" \
-    _cmd=() \
-    _value \
-    _status
-  _diagonal="$(( ))"
-  if [[ "${TERMUX_VERSION}" != "" ]]; then
-    _cmd=(
-      wm
-        size
-    )
-    _value="$( \
-      su \
-        -c \
-        "${_cmd[@]}" | \
-        grep \
-          "${_mode} size: " |
-          awk \
-            '{print $3}')"
-  fi
-  echo \
-    "${_value}"
-}
-
 _display_ppa() {
   local \
     _mode="${1}" \
@@ -72,18 +47,12 @@ _display_ppa() {
   fi
   _width="$( \
     display-resolution \
-      "${_display_resolution_opts[@]}" | \
-      awk \
-        -F \
-          "x" \
-        '{print $1}')"
+      "${_display_resolution_opts[@]}"
+      -W)"
   _height="$( \
     display-resolution \
       "${_display_resolution_opts[@]}" | \
-      awk \
-        -F \
-          "x" \
-        '{print $2}')"
+      -H)"
   _pixels="( ${_width} * ${_height} )"
   _dpi="$( \
     display-dpi \
@@ -144,7 +113,7 @@ _set_overrides() {
 # Shows configuration options.
 _show_config() {
   _msg_info "${app_name} configuration"
-  _msg_info "      Display ppa at date:   $(_get "get" "date")"
+  _msg_info "   Pixel per area at date:   $(_get "get" "date")"
   _msg_info "                 Get mode:   $(_get "get" "mode")"
   _msg_info "            Physical size:   $(_get "physical" "size")"
 }

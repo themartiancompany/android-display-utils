@@ -21,6 +21,7 @@ install-scripts:
 
 	install -vDm 755 android-display-utils/display-dpi "$(BIN_DIR)/display-dpi"
 	install -vDm 755 android-display-utils/display-ppa "$(BIN_DIR)/display-ppa"
+	install -vDm 755 android-display-utils/display-ppi "$(BIN_DIR)/display-ppi"
 	install -vDm 755 android-display-utils/display-status "$(BIN_DIR)/display-status"
 	install -vDm 755 android-display-utils/display-resolution "$(BIN_DIR)/display-resolution"
 

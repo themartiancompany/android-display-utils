@@ -24,6 +24,8 @@ _global_variables() {
   get_date=""
   get_mode=""
   physical_size=""
+  width_get=""
+  height_get=""
   color=""
   quiet=""
 }
@@ -52,17 +54,52 @@ _root_get() {
     "${_value}"
 }
 
+_height_get() {
+  local \
+    _resolution="${1}"
+  echo \
+    "${_resolution}" | \
+      awk \
+        -F \
+          "x" \
+        '{print $2}'
+}
+
+_width_get() {
+  local \
+    _resolution="${1}"
+  echo \
+    "${_resolution}" | \
+      awk \
+        -F \
+          "x" \
+        '{print $1}'
+}
+
 _display_resolution() {
   local \
     _mode="${1}" \
     _physical_size="${2}" \
+    _width="${3}" \
+    _height="${4}" \
     _size_mode="Override" \
     _cmd=()
   if [[ "${_physical_size}" == "y" ]]; then
     _size_mode="Physical"
   fi
-  "_${_mode}_get" \
-    "${_size_mode}"
+  _resolution="$( \
+    "_${_mode}_get" \
+      "${_size_mode}")"
+  if [[ "${_height}" == "y" ]]; then
+    _height_get \
+      "${_resolution}"
+  elif [[ "${_width}" == "y" ]]; then
+    _width_get \
+      "${_resolution}"
+  else
+    echo \
+      "${_resolution}"
+  fi
 }
 
 _auto_detect_mode() {
@@ -94,6 +131,14 @@ _set_overrides() {
     "physical" \
     "size" \
     "n"
+  _set_override \
+    "height" \
+    "get" \
+    "n"
+  _set_override \
+    "width" \
+    "get" \
+    "n"
   if [[ -v override_color ]]; then
     color="${override_color}"
   elif [[ -z "${color}" ]]; then
@@ -111,6 +156,8 @@ _show_config() {
   _msg_info "${app_name} configuration"
   _msg_info "   Display status at date:   $(_get "get" "date")"
   _msg_info "                 Get mode:   $(_get "get" "mode")"
+  _msg_info "                Get width:   $(_get "width" "get")"
+  _msg_info "               Get height:   $(_get "height" "get")"
   _msg_info "            Physical size:   $(_get "physical" "size")"
 }
 
@@ -136,6 +183,11 @@ Usage:
                           Default: $(_get "get" "mode")
      -p                   Whether to get physical size
                           Default: $(_get "physical" "size")
+     -W                   Whether to get width
+                          Default: $(_get "width" "get")
+     -H                   Whether to get height
+                          Default: $(_get "height" "get")
+
      -h                   This message.
      -v                   Enable verbose output
 ENDUSAGETEXT
@@ -152,11 +204,13 @@ _global_variables
 # shellcheck disable=SC2034
 while \
   getopts \
-    'm:pcvh?' \
+    'm:WHpcvh?' \
     arg; do
   case \
     "${arg}" in
     m) override_get_mode="${OPTARG}" ;;
+    W) override_width_get="y" ;;
+    H) override_height_get="y" ;;
     p) override_physical_size="y" ;;
     c) override_color="y" ;;
     v) override_quiet="n" ;;
@@ -185,6 +239,12 @@ app_opts=(
   "$(_get \
        "physical" \
        "size")"
+  "$(_get \
+      "width" \
+       "get")"
+  "$(_get \
+       "height" \
+      "get")"
 )
 _show_config
 _display_resolution \
