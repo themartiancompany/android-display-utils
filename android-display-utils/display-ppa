@@ -47,11 +47,11 @@ _display_ppa() {
   fi
   _width="$( \
     display-resolution \
-      "${_display_resolution_opts[@]}"
+      "${_display_resolution_opts[@]}" \
       -W)"
   _height="$( \
     display-resolution \
-      "${_display_resolution_opts[@]}" | \
+      "${_display_resolution_opts[@]}" \
       -H)"
   _pixels="( ${_width} * ${_height} )"
   _dpi="$( \
