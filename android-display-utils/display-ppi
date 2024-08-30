@@ -15,8 +15,8 @@ source \
 
 _root_requirements() {
   _check_cmd \
-    "display-dpi" \
-    "display-resolution"
+    "display-ppa" \
+    "android-display-utils"
 }
 
 # shellcheck disable=SC2034

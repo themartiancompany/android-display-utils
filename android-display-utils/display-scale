@@ -15,61 +15,110 @@ source \
 
 _root_requirements() {
   _check_cmd \
-    "display-dpi" \
-    "android-utils-display"
-  _check_cmd \
     "display-resolution" \
-    "android-utils-display"
+    "android-display-utils"
+  _check_cmd \
+    "display-aspect-ratio" \
+    "android-display-utils"
 }
 
 # shellcheck disable=SC2034
 _global_variables() {
   get_date=""
   get_mode=""
-  physical_size=""
+  target_command=""
+  scale_value=""
   color=""
   quiet=""
 }
 
-_display_ppa() {
+_root_get() {
   local \
-    _mode="${1}" \
-    _physical_size="${2}" \
-    _display_dpi_opts=() \
-    _display_resolution_opts=() \
-    _width \
+    _physical_aspect_ratio \
+    _current_aspect_ratio \
+    _current_height \
+    _physical_height \
+   _display_dpi_opts=()
+  _physical_aspect_ratio="$( \
+    display-aspect-ratio \
+      -p)"
+  _current_aspect_ratio="$( \
+    display-aspect-ratio)"
+  if [[ "${_current_aspect_ratio}" == "${_physical_aspect_ratio}" ]]; then
+    _physical_height="$( \
+      display-resolution \
+        -p \
+        -H)"
+    _current_height="$( \
+      display-resolution \
+        -H)"
+    _scale="${_current_height} / ${_physical_height}"
+    echo \
+      "scale=5;${_scale}" | \
+      bc
+  elif [[ "${_current_aspect_ratio}" != "${_physical_aspect_ratio}" ]]; then
+    _msg_error \
+      "display is not using a resolution fit for its native aspect ratio"
+    return \
+      1
+  fi
+}
+
+_root_set() {
+  local \
+    _value="${1}" \
+    _current_scale \
+    _current_height \
+    _current_width \
     _height \
+    _physical_height \
+    _physical_width \
+    _width \
     _cmd=()
-  if [[ "${_physical_size}" == "y" ]]; then
-    _display_resolution_opts+=(
-      -p
-    )
-    _display_dpi_opts+=(
-      -p
+  _current_scale="$( \
+    "_${_mode}_get")"
+  _msg_info \
+    "Setting scale from ${_current_scale} to ${_value}"
+  _physical_height="$( \
+    display-resolution \
+      -p \
+      -H)"
+  _physical_width="$( \
+    display-resolution \
+      -p \
+      -W)"
+  _width="$( \
+    echo \
+      "scale=0;${_physical_width}*${_value}" | \
+      bc)"
+  _height="$( \
+    echo \
+      "scale=0;${_physical_height}*${_value}" | \
+      bc)"
+  _cmd=(
+    wm
+      size
+        "${_width}x${_height}"
+  )
+  _msg_info \
+    "executing '${_cmd[*]}'"
+  sudo \
+    "${_cmd[@]}"
+}
+
+_display_scale() {
+  local \
+    _command="${1}" \
+    _mode="${2}" \
+    _value="${3}" \
+    _args=()
+  if [[ "${_command}" == "set" ]]; then
+    _args+=(
+      "${_value}"
     )
   fi
-  _width="$( \
-    display-resolution \
-      "${_display_resolution_opts[@]}" \
-      -W)"
-  _height="$( \
-    display-resolution \
-      "${_display_resolution_opts[@]}" \
-      -H)"
-  _pixels="( ${_width} * ${_height} )"
-  _dpi="$( \
-    display-dpi \
-      "${_display_dpi_opts[@]}")"
-  _msg_info \
-    "evaluating ${_pixels} / ${_dpi}"
-  _ppa="$( \
-    echo \
-      "${_pixels}/ ${_dpi}" | \
-      bc)"
-  echo \
-    "${_ppa}"
-  # "_${_mode}_get" \
-  #   "${_size_mode}"
+  "_${_mode}_${_command}" \
+    "${_args[@]}"
 }
 
 _auto_detect_mode() {
@@ -98,9 +147,9 @@ _set_overrides() {
     "mode" \
     "$(_auto_detect_mode)"
   _set_override \
-    "physical" \
-    "size" \
-    "n"
+    "target" \
+    "command" \
+    "get"
   if [[ -v override_color ]]; then
     color="${override_color}"
   elif [[ -z "${color}" ]]; then
@@ -118,7 +167,8 @@ _show_config() {
   _msg_info "${app_name} configuration"
   _msg_info "   Pixel per area at date:   $(_get "get" "date")"
   _msg_info "                 Get mode:   $(_get "get" "mode")"
-  _msg_info "            Physical size:   $(_get "physical" "size")"
+  _msg_info "           Target command:   $(_get "target" "command")"
+  _msg_info "              Scale value:   $(_get "scale" "value")"
 }
 
 # Show help usage, with an exit status.
@@ -133,17 +183,19 @@ _usage() {
       _usage_text << \
         ENDUSAGETEXT || true
 
-Get Android display pixel per area.
+Manage Android display scale.
 
 Usage:
   $(_get "app" "name")
     [options]
+    (<command>)
+    (<value>)
+  commands:
+    get
+    set
   options:
      -m <method>          Method to obtain pixels per total area.
                           Default: $(_get "get" "mode")
-     -p                   Whether to get physical number of pixels
-                          per totas area.
-                          Default: $(_get "physical" "size")
      -h                   This message.
      -v                   Enable verbose output
 ENDUSAGETEXT
@@ -165,7 +217,6 @@ while \
   case \
     "${arg}" in
     m) override_get_mode="${OPTARG}" ;;
-    p) override_physical_size="y" ;;
     c) override_color="y" ;;
     v) override_quiet="n" ;;
     h|?) _set_overrides && \
@@ -185,17 +236,35 @@ shift \
   $(( \
     OPTIND - 1 \
   ))
+(( "$#" == 0 )) && \
+  _set \
+    "target" \
+    "command" \
+    "get"
+(( 0 < "$#" )) && \
+  _set \
+    "target" \
+    "command" \
+    "${1}"
+(( 1 < "$#" )) && \
+  _set \
+    "scale" \
+    "value" \
+    "${2}"
 _set_overrides
 app_opts=(
+  "$(_get \
+       "target" \
+       "command")"
   "$(_get \
        "get" \
        "mode")"
   "$(_get \
-       "physical" \
-       "size")"
+       "scale" \
+       "value")"
 )
 _show_config
-_display_ppa \
+_display_scale \
   "${app_opts[@]}"
 
 # vim:set sw=2 sts=-1 et:

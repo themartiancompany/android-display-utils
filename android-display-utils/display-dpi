@@ -47,6 +47,16 @@ _root_get() {
           "${_mode} density: " |
           awk \
             '{print $3}')"
+    if [[ "${_value}" == "" ]]; then
+      _value="$( \
+        su \
+          -c \
+          "${_cmd[@]}" | \
+          grep \
+            "Physical density: " |
+            awk \
+              '{print $3}')"
+    fi
   fi
   echo \
     "${_value}"
