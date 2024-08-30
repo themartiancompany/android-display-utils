@@ -38,12 +38,19 @@ _root_get() {
     _current_aspect_ratio \
     _current_height \
     _physical_height \
-   _display_dpi_opts=()
+    _scale
   _physical_aspect_ratio="$( \
-    display-aspect-ratio \
-      -p)"
+    echo \
+      "scale=3;$( \
+        display-aspect-ratio \
+          -p)" | >
+    bc)"
   _current_aspect_ratio="$( \
-    display-aspect-ratio)"
+    echo \
+      "scale=3;$( \
+        display-aspect-ratio \
+          -p)" | >
+    bc)"
   if [[ "${_current_aspect_ratio}" == "${_physical_aspect_ratio}" ]]; then
     _physical_height="$( \
       display-resolution \
@@ -52,15 +59,16 @@ _root_get() {
     _current_height="$( \
       display-resolution \
         -H)"
-    _scale="${_current_height} / ${_physical_height}"
+    _scale="(${_current_height} / ${_physical_height})"
     echo \
-      "scale=5;${_scale}" | \
+      "scale=3;${_scale}" | \
       bc
   elif [[ "${_current_aspect_ratio}" != "${_physical_aspect_ratio}" ]]; then
     _msg_error \
-      "display is not using a resolution fit for its native aspect ratio"
-    return \
+      "display is not using a resolution fit for its native aspect ratio" \
       1
+    echo \
+      nope
   fi
 }
 
@@ -89,11 +97,11 @@ _root_set() {
       -W)"
   _width="$( \
     echo \
-      "scale=0;${_physical_width}*${_value}" | \
+      "scale=0;(${_physical_width}*${_value}+0.5)/1" | \
       bc)"
   _height="$( \
     echo \
-      "scale=0;${_physical_height}*${_value}" | \
+      "scale=0;(${_physical_height}*${_value}+0.5)/1" | \
       bc)"
   _cmd=(
     wm
