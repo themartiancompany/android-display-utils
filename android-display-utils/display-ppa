@@ -1,0 +1,228 @@
+#!/usr/bin/env bash
+#
+# SPDX-License-Identifier: AGPL-3.0
+
+_bin="$( \
+  dirname \
+    "$( \
+      command \
+        -v \
+	  "env")")"
+_lib="${_bin}/../lib"
+_share="${_bin}/../share"
+source \
+  "${_lib}/libcrash-bash/crash-bash"
+
+_root_requirements() {
+  _check_cmd \
+    "display-dpi" \
+    "display-resolution"
+}
+
+# shellcheck disable=SC2034
+_global_variables() {
+  get_date=""
+  get_mode=""
+  physical_size=""
+  color=""
+  quiet=""
+}
+
+_root_get() {
+  local \
+    _mode="${1}" \
+    _cmd=() \
+    _value \
+    _status
+  _diagonal="$(( ))"
+  if [[ "${TERMUX_VERSION}" != "" ]]; then
+    _cmd=(
+      wm
+        size
+    )
+    _value="$( \
+      su \
+        -c \
+        "${_cmd[@]}" | \
+        grep \
+          "${_mode} size: " |
+          awk \
+            '{print $3}')"
+  fi
+  echo \
+    "${_value}"
+}
+
+_display_ppa() {
+  local \
+    _mode="${1}" \
+    _physical_size="${2}" \
+    _display_dpi_opts=() \
+    _display_resolution_opts=() \
+    _width \
+    _height \
+    _cmd=()
+  if [[ "${_physical_size}" == "y" ]]; then
+    _display_resolution_opts+=(
+      -p
+    )
+    _display_dpi_opts+=(
+      -p
+    )
+  fi
+  _width="$( \
+    display-resolution \
+      "${_display_resolution_opts[@]}" | \
+      awk \
+        -F \
+          "x" \
+        '{print $1}')"
+  _height="$( \
+    display-resolution \
+      "${_display_resolution_opts[@]}" | \
+      awk \
+        -F \
+          "x" \
+        '{print $2}')"
+  _pixels="( ${_width} * ${_height} )"
+  _dpi="$( \
+    display-dpi \
+      "${_display_dpi_opts[@]}")"
+  _msg_info \
+    "evaluating ${_pixels} / ${_dpi}"
+  _ppa="$( \
+    echo \
+      "${_pixels}/ ${_dpi}" | \
+      bc)"
+  echo \
+    "${_ppa}"
+  # "_${_mode}_get" \
+  #   "${_size_mode}"
+}
+
+_auto_detect_mode() {
+  local \
+    _os
+  _os="$( \
+    uname \
+      -o)"
+  if [[ "${_os}" == "Android" ]]; then
+    _root_requirements
+    echo \
+      "root"
+  elif [[ "${_os}" == "GNU/Linux" ]]; then
+    _msg_error \
+      "not implemented. something with xdotool needs to be written"
+  fi
+}
+
+_set_overrides() {
+  _set_override \
+    "get" \
+    "date" \
+    "$(_get_date_human)"
+  _set_override \
+    "get" \
+    "mode" \
+    "$(_auto_detect_mode)"
+  _set_override \
+    "physical" \
+    "size" \
+    "n"
+  if [[ -v override_color ]]; then
+    color="${override_color}"
+  elif [[ -z "${color}" ]]; then
+    color="n"
+  fi
+  if [[ -v override_quiet ]]; then
+    quiet="${override_quiet}"
+  elif [[ -z "${quiet}" ]]; then
+    quiet="y"
+  fi
+}
+
+# Shows configuration options.
+_show_config() {
+  _msg_info "${app_name} configuration"
+  _msg_info "      Display ppa at date:   $(_get "get" "date")"
+  _msg_info "                 Get mode:   $(_get "get" "mode")"
+  _msg_info "            Physical size:   $(_get "physical" "size")"
+}
+
+# Show help usage, with an exit status.
+# $1: exit status number.
+_usage() {
+  local \
+    _usage_text
+  IFS='' \
+    read \
+      -r \
+      -d '' \
+      _usage_text << \
+        ENDUSAGETEXT || true
+
+Get Android display pixel per area.
+
+Usage:
+  $(_get "app" "name")
+    [options]
+  options:
+     -m <method>          Method to obtain pixels per total area.
+                          Default: $(_get "get" "mode")
+     -p                   Whether to get physical number of pixels
+                          Default: $(_get "physical" "size")
+     -h                   This message.
+     -v                   Enable verbose output
+ENDUSAGETEXT
+  _printf \
+    '%s\n' \
+    "${_usage_text}"
+  exit \
+    "${1}"
+}
+
+_globals
+_global_variables
+# shellcheck disable=SC2004
+# shellcheck disable=SC2034
+while \
+  getopts \
+    'm:pcvh?' \
+    arg; do
+  case \
+    "${arg}" in
+    m) override_get_mode="${OPTARG}" ;;
+    p) override_physical_size="y" ;;
+    c) override_color="y" ;;
+    v) override_quiet="n" ;;
+    h|?) _set_overrides && \
+	 _usage \
+           0 ;;
+    *)
+    _msg_error \
+      "Invalid argument '${arg}'" \
+      0 && \
+    _set_overrides && \
+    _usage \
+      1
+    ;;
+  esac
+done
+shift \
+  $(( \
+    OPTIND - 1 \
+  ))
+_set_overrides
+app_opts=(
+  "$(_get \
+       "get" \
+       "mode")"
+  "$(_get \
+       "physical" \
+       "size")"
+)
+_show_config
+_display_ppa \
+  "${app_opts[@]}"
+
+# vim:set sw=2 sts=-1 et:
