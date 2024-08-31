@@ -21,6 +21,7 @@ install-scripts:
 
 	install -vDm 755 android-display-utils/display-aspect-ratio "$(BIN_DIR)/display-aspect-ratio"
 	install -vDm 755 android-display-utils/display-dpi "$(BIN_DIR)/display-dpi"
+	install -vDm 755 android-display-utils/display-form-factor "$(BIN_DIR)/display-form-factor"
 	install -vDm 755 android-display-utils/display-ppa "$(BIN_DIR)/display-ppa"
 	install -vDm 755 android-display-utils/display-ppi "$(BIN_DIR)/display-ppi"
 	install -vDm 755 android-display-utils/display-scale "$(BIN_DIR)/display-scale"

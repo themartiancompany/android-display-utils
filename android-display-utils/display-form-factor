@@ -15,15 +15,13 @@ source \
 
 _root_requirements() {
   _check_cmd \
-    "bc"
-  _check_cmd \
     "display-dpi" \
     "android-display-utils"
   _check_cmd \
-    "display-resolution" \
+    "display-ppa" \
     "android-display-utils"
   _check_cmd \
-    "display-aspect-ratio" \
+    "display-resolution" \
     "android-display-utils"
 }
 
@@ -32,146 +30,144 @@ _global_variables() {
   get_date=""
   get_mode=""
   target_command=""
-  scale_value=""
-  independent_dpi=""
+  form_factor=""
+  scale_force=""
   color=""
   quiet=""
 }
 
+_ratio_get() {
+  local \
+    _ppa_native \
+    _ppa_current
+  _ppa_native="$( \
+    display-ppa \
+      -p)"
+  _ppa_current="$( \
+    display-ppa)"
+  echo \
+    "scale=5;${_ppa_current} / ${_ppa_native}" | \
+    bc
+}
+
 _root_get() {
   local \
-    _physical_aspect_ratio \
-    _current_aspect_ratio \
-    _current_height \
-    _physical_height \
-    _scale
-  _physical_aspect_ratio="$( \
-    echo \
-      "scale=3;$( \
-        display-aspect-ratio \
-          -p)/1" | \
-    bc)"
-  _current_aspect_ratio="$( \
-    echo \
-      "scale=3;$( \
-        display-aspect-ratio)/1" | \
-    bc)"
-  if [[ "${_current_aspect_ratio}" == "${_physical_aspect_ratio}" ]]; then
-    _physical_height="$( \
-      display-resolution \
-        -p \
-        -H)"
-    _current_height="$( \
-      display-resolution \
-        -H)"
-    _scale="(${_current_height} / ${_physical_height})"
-    echo \
-      "scale=3;${_scale}" | \
-      bc
-  elif [[ "${_current_aspect_ratio}" != "${_physical_aspect_ratio}" ]]; then
-    _msg_error \
-      "display is not using a resolution fit for its native aspect ratio" \
-      1
-    echo \
-      nope
+    _scale_force="${1}" \
+    _form_factor \
+    _ratio
+  _ratio="$( \
+    _ratio_get)"
+  if [[ "${_scale_force}" != "" ]]; then
+    _form_factor="$( \
+      _ratio_get)"
+  elif (( "$(echo "${_ratio} == 1" | bc -l)" )); then
+    _form_factor="native"
+  elif (( "$(echo "${_ratio} != 1" | bc -l)" )); then
+    if (( $(echo "1.45 < ${_ratio}" | bc -l ) )); then
+      _form_factor="larger"
+    elif (( $(echo "${_ratio} < 0.6" | bc -l)  )); then
+      _form_factor="smaller"
+    else
+      _form_factor="native"
+    fi
+  fi
+  echo \
+    "${_form_factor}"
+}
+
+_ppa_get() {
+  local \
+    _mode="${1}" \
+    _scale_force="${2}" \
+    _physical_ppa
+  _physical_ppa="$( \
+    display-ppa \
+      -p)"
+  if [[ "${_mode}" != "" ]]; then
+    if [[ "${_mode}" == "native" ]]; then
+      _ppa="${_physical_ppa}"
+    elif [[ "${_mode}" == "larger" ]]; then
+      _ppa="$( \
+        echo \
+        "scale=0;((${_physical_ppa} * 3) / 2 + 0.5) / 1" | \
+          bc)"
+    elif [[ "${_mode}" == "smaller" ]]; then
+      _ppa="$( \
+        echo \
+          "scale=0;(${_physical_ppa} / 2 + 0.5) / 1" | \
+          bc)"
+    fi
+  elif [[ "${_scale_force}" != "" ]]; then
+    _ppa="$( \
+      echo \
+        "scale=0;(${_physical_ppa} * ${_scale_force} + 0.5) / 1" | \
+        bc)"
   fi
 }
 
 _root_set() {
   local \
     _value="${1}" \
-    _current_scale \
-    _current_ppa \
+    _scale_force="${2}" \
+    _display_dpi_opts=() \
+    _ppa \
     _height \
-    _physical_height \
-    _physical_width \
     _width \
-    _dpi \
-    _dpi_min \
-    _cmd=() \
-    _display_dpi_opts=()
+    _pixels \
+    _current_form_factor \
+    _dpi
   if [[ "${quiet}" != "y" ]]; then
     _display_dpi_opts+=(
       -v
     )
   fi
-  _current_scale="$( \
-    "_${_mode}_get")"
-  if [[ "${_current_scale}" == "${_value}" ]]; then
+  _current_form_factor="$( \
+    _root_get \
+      "${_scale_force}")"
+  if [[ "${_value}" == "${_current_form_factor}" ]]; then
     _msg_info \
-      "scale set to ${_value} already"
-    return \
-      0
-  fi
-  _msg_info \
-    "Setting scale from ${_current_scale} to ${_value}"
-  _physical_height="$( \
-    display-resolution \
-      -p \
-      -H)"
-  _physical_width="$( \
-    display-resolution \
-      -p \
-      -W)"
-  _width="$( \
-    echo \
-      "scale=0;(${_physical_width}*${_value}+0.5)/1" | \
-      bc)"
-  _height="$( \
-    echo \
-      "scale=0;(${_physical_height}*${_value}+0.5)/1" | \
-      bc)"
-  _cmd=(
-    wm
-      size
-        "${_width}x${_height}"
-  )
-  if [[ "${_independent_dpi}" == "n" ]]; then
-    _current_height="$( \
+      "form factor '${_value}' already set"
+    return 0
+  else
+    _msg_info \
+      "Setting form factor from ${_current_form_factor} to ${_value}"
+    _height="$( \
       display-resolution \
         -H)"
+    _width="$( \
+      display-resolution \
+        -W)"
+    _pixels="$(( \
+      _width * _height ))"
+    _ppa_get \
+      "${_value}" \
+      "${_scale_force}"
     _dpi="$( \
       echo \
-      "scale=3;($(display-dpi) * (${_height} / ${_current_height}))" | \
+        "scale=0; ${_pixels} / ${_ppa}" | \
         bc)"
-    echo \
-      "${_dpi}"
-    _dpi="$( \
-      echo \
-      "scale=0;(${_dpi} / 1)" | \
-        bc)"
-    echo \
-      "${_dpi}"
-    _dpi_min="$( \
-      display-dpi \
-      min)"
-    if (( $(echo "${_dpi} < ${_dpi_min}" | bc -l) )); then
-      _msg_error \
-        "The device can't preserve dpi at scale '${_value}'" \
-        1
-    fi
-    display-dpi \
-      "${_display_dpi_opts[@]}" \
-      set \
-        "${_dpi}"
   fi
-  _msg_info \
-    "executing '${_cmd[*]}'"
-  sudo \
-    "${_cmd[@]}"
+  display-dpi \
+    "${_display_opts[@]}" \
+    set
+      "${_dpi}"
 }
 
-_display_scale() {
+_display_form_factor() {
   local \
     _command="${1}" \
     _mode="${2}" \
     _value="${3}" \
-    _independent_dpi="${4}" \
+    _scale_force="${4}" \
     _args=()
   if [[ "${_command}" == "set" ]]; then
     _args+=(
       "${_value}"
-      "${_independent_dpi}"
+      "${_scale_force}"
+    )
+  elif [[ "${_command}" == "get" ]]; then
+    _args+=(
+      "${_scale_force}"
     )
   fi
   "_${_mode}_${_command}" \
@@ -208,9 +204,9 @@ _set_overrides() {
     "command" \
     "get"
   _set_override \
-    "independent" \
-    "dpi" \
-    "n"
+    "scale" \
+    "force" \
+    ""
   if [[ -v override_color ]]; then
     color="${override_color}"
   elif [[ -z "${color}" ]]; then
@@ -226,11 +222,11 @@ _set_overrides() {
 # Shows configuration options.
 _show_config() {
   _msg_info "${app_name} configuration"
-  _msg_info "   Pixel per area at date:   $(_get "get" "date")"
+  _msg_info "      Form factor at date:   $(_get "get" "date")"
   _msg_info "                 Get mode:   $(_get "get" "mode")"
   _msg_info "           Target command:   $(_get "target" "command")"
-  _msg_info "              Scale value:   $(_get "scale" "value")"
-  _msg_info "          Independent dpi:   $(_get "independent" "dpi")"
+  _msg_info "              Form factor:   $(_get "form" "factor")"
+  _msg_info "              Scale force:   $(_get "scale" "force")"
 }
 
 # Show help usage, with an exit status.
@@ -245,21 +241,24 @@ _usage() {
       _usage_text << \
         ENDUSAGETEXT || true
 
-Manage Android display scale.
+Manage Android display form factor.
 
 Usage:
   $(_get "app" "name")
     [options]
     (<command>)
-    (<value>)
+    (<form_factor>)
   commands:
     get
-    set
+    set                   Accepted values: native, larger, smaller
   options:
-     -m <method>          Method to obtain pixels per total area.
+     -m <method>          Method to obtain form factor.
                           Default: $(_get "get" "mode")
-     -p                   Whether to scale dpi together with the display.
-                          Default: $(_get "independent" "dpi")
+     -f <scale>           Set the form factor using a scale factor
+                          applied to native ppa value.
+                          Values greater than 1 will make the
+                          interface smaller, less than 1 larger.
+                          Default: $(_get "scale" "force")
      -h                   This message.
      -v                   Enable verbose output
 ENDUSAGETEXT
@@ -276,12 +275,12 @@ _global_variables
 # shellcheck disable=SC2034
 while \
   getopts \
-    'm:dcvh?' \
+    'm:f:cvh?' \
     arg; do
   case \
     "${arg}" in
     m) override_get_mode="${OPTARG}" ;;
-    d) override_independent_dpi="y" ;;
+    f) override_scale_force="${OPTARG}" ;;
     c) override_color="y" ;;
     v) override_quiet="n" ;;
     h|?) _set_overrides && \
@@ -312,9 +311,10 @@ shift \
     "command" \
     "${1}"
 (( 1 < "$#" )) && \
+[[ "${target_command}" == "set" ]] && \
   _set \
-    "scale" \
-    "value" \
+    "form" \
+    "factor" \
     "${2}"
 _set_overrides
 app_opts=(
@@ -325,14 +325,14 @@ app_opts=(
        "get" \
        "mode")"
   "$(_get \
-       "scale" \
-       "value")"
+       "form" \
+       "factor")"
   "$(_get \
-       "independent" \
-       "dpi")"
+       "scale" \
+       "force")"
 )
 _show_config
-_display_scale \
+_display_form_factor \
   "${app_opts[@]}"
 
 # vim:set sw=2 sts=-1 et:

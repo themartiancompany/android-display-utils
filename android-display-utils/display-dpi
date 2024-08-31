@@ -22,6 +22,8 @@ _root_requirements() {
 # shellcheck disable=SC2034
 _global_variables() {
   get_date=""
+  target_command=""
+  dpi_value=""
   get_mode=""
   physical_density=""
   color=""
@@ -62,17 +64,78 @@ _root_get() {
     "${_value}"
 }
 
-_display_resolution() {
+_root_min() {
   local \
-    _mode="${1}" \
-    _physical_density="${2}" \
+    _cmd=() \
+    _out
+  _cmd=(
+    wm
+      density
+        1
+  )
+  su \
+    -c \
+    "${_cmd[*]}" | \
+    awk \
+      '{print $6}' | \
+      tr \
+        -d \
+        $'\r' 
+}
+
+_root_set() {
+  local \
+    _value="${1}" \
+    _cmd=() \
+    _dpi_min \
+    _below
+  _dpi_min="$( \
+    _root_min)"
+  _below="$( \
+    echo \
+      "${_value} < ${_dpi_min}" | \
+      bc \
+        -l)"
+  if (( "${_below}" )); then
+    _msg_error \
+      "value '${_value}' below minimum '${_dpi_min}' dpi" \
+      1
+  else
+    _cmd=(
+      wm
+        density
+          "${_value}"
+    )
+    sudo \
+      "${_cmd[@]}"
+  fi
+}
+
+_display_dpi() {
+  local \
+    _command="${1}" \
+    _value="${2}" \
+    _mode="${3}" \
+    _physical_density="${4}" \
     _density_mode="Override" \
-    _cmd=()
+    _args=()
   if [[ "${_physical_density}" == "y" ]]; then
     _density_mode="Physical"
   fi
-  "_${_mode}_get" \
-    "${_density_mode}"
+  if [[ "${_command}" == "set" ]]; then
+    _args+=(
+      "${_value}"
+    )
+  elif [[ "${_command}" == "get" ]]; then
+    _args+=(
+      "${_density_mode}"
+    )
+  elif [[ "${_command}" == "min" ]]; then
+    _args+=(
+    )
+  fi
+  "_${_mode}_${_command}" \
+    "${_args[@]}"
 }
 
 _auto_detect_mode() {
@@ -97,6 +160,14 @@ _set_overrides() {
     "date" \
     "$(_get_date_human)"
   _set_override \
+    "target" \
+    "command" \
+    "get"
+  _set_override \
+    "dpi" \
+    "value" \
+    ""
+  _set_override \
     "get" \
     "mode" \
     "$(_auto_detect_mode)"
@@ -120,7 +191,9 @@ _set_overrides() {
 _show_config() {
   _msg_info "${app_name} configuration"
   _msg_info "  Display density at date:   $(_get "get" "date")"
+  _msg_info "           Target command:   $(_get "target" "command")"
   _msg_info "                 Get mode:   $(_get "get" "mode")"
+  _msg_info "             Target value:   $(_get "dpi" "value")"
   _msg_info "         Physical density:   $(_get "physical" "density")"
 }
 
@@ -141,6 +214,12 @@ Get Android display status
 Usage:
   $(_get "app" "name")
     [options]
+    <command>
+    (<value>)
+  commands:
+    get                   Get pixel density per inch value
+    set                   Set pixel density per inch value
+    min                   Get minimum allowed pixel density per inch
   options:
      -m <method>          Method to obtain display status.
                           Default: $(_get "get" "mode")
@@ -187,8 +266,25 @@ shift \
   $(( \
     OPTIND - 1 \
   ))
+(( 0 < "$#" )) && \
+  _set \
+    "target" \
+    "command" \
+    "${1}"
+(( 1 < "$#" )) && \
+[[ "${target_command}" == "set" ]] && \
+  _set \
+    "dpi" \
+    "value" \
+    "${2}"
 _set_overrides
 app_opts=(
+  "$(_get \
+       "target" \
+       "command")"
+  "$(_get \
+       "dpi" \
+       "value")"
   "$(_get \
        "get" \
        "mode")"
@@ -197,7 +293,7 @@ app_opts=(
        "density")"
 )
 _show_config
-_display_resolution \
+_display_dpi \
   "${app_opts[@]}"
 
 # vim:set sw=2 sts=-1 et:
