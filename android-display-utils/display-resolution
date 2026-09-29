@@ -229,23 +229,32 @@ while \
     arg; do
   case \
     "${arg}" in
-    m) override_get_mode="${OPTARG}" ;;
-    W) override_width_get="y" ;;
-    H) override_height_get="y" ;;
-    p) override_physical_size="y" ;;
-    c) override_color="y" ;;
-    v) override_quiet="n" ;;
-    h|?) _set_overrides && \
-	 _usage \
-           0 ;;
+    m)
+      override_get_mode="${OPTARG}" ;;
+    W)
+      override_width_get="y" ;;
+    H)
+      override_height_get="y" ;;
+    p)
+      override_physical_size="y" ;;
+    c)
+      override_color="y" ;;
+    v)
+      override_quiet="n" ;;
+    h|?)
+      _set_overrides
+      _usage \
+        0 ;;
     *)
-    _msg_error \
-      "Invalid argument '${arg}'" \
-      0 && \
-    _set_overrides && \
-    _usage \
-      1
-    ;;
+      _msg=(
+        "Invalid argument '${arg}'."
+      )
+      _msg_error \
+        "${_msg[*]}" \
+        0
+      _set_overrides
+      _usage \
+        1 ;;
   esac
 done
 shift \
