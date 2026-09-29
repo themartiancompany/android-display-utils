@@ -2,21 +2,25 @@
 #
 # SPDX-License-Identifier: AGPL-3.0
 
-_bin="$( \
+_bin="$(
   dirname \
-    "$( \
-      command \
-        -v \
-	  "env")")"
+    "$(command \
+         -v \
+	 "env")")"
 _lib="${_bin}/../lib"
 _share="${_bin}/../share"
+_crash_bash="${_lib}/libcrash-bash/crash-bash"
+_sourced \
+  "${_crash_bash}" \
+  1>"/dev/null" \
+  2>"/dev/null" || \
 source \
-  "${_lib}/libcrash-bash/crash-bash"
+  "${_crash_bash}"
 
 _root_requirements() {
   _check_cmd \
     "su" \
-    "tsu"
+    "sudo"
 }
 
 # shellcheck disable=SC2034
@@ -114,8 +118,9 @@ _display_resolution() {
 
 _auto_detect_mode() {
   local \
-    _os
-  _os="$( \
+    _os \
+    _msg=()
+  _os="$(
     uname \
       -o)"
   if [[ "${_os}" == "Android" ]]; then
@@ -123,12 +128,28 @@ _auto_detect_mode() {
     echo \
       "root"
   elif [[ "${_os}" == "GNU/Linux" ]]; then
+    _msg=(
+      "Not implemented."
+      "Something with xrandr needs"
+      "to be written."
+    )
     _msg_error \
-      "not implemented. something with xdotool needs to be written"
+      "${_msg[*]}" \
+      1
   fi
 }
 
 _set_overrides() {
+  if [[ -v override_color ]]; then
+    color="${override_color}"
+  elif [[ -z "${color}" ]]; then
+    color="n"
+  fi
+  if [[ -v override_quiet ]]; then
+    quiet="${override_quiet}"
+  elif [[ -z "${quiet}" ]]; then
+    quiet="y"
+  fi
   _set_override \
     "get" \
     "date" \
@@ -149,26 +170,16 @@ _set_overrides() {
     "width" \
     "get" \
     "n"
-  if [[ -v override_color ]]; then
-    color="${override_color}"
-  elif [[ -z "${color}" ]]; then
-    color="n"
-  fi
-  if [[ -v override_quiet ]]; then
-    quiet="${override_quiet}"
-  elif [[ -z "${quiet}" ]]; then
-    quiet="y"
-  fi
 }
 
 # Shows configuration options.
 _show_config() {
   _msg_info "${app_name} configuration"
-  _msg_info "   Display status at date:   $(_get "get" "date")"
-  _msg_info "                 Get mode:   $(_get "get" "mode")"
-  _msg_info "                Get width:   $(_get "width" "get")"
-  _msg_info "               Get height:   $(_get "height" "get")"
-  _msg_info "            Physical size:   $(_get "physical" "size")"
+  _msg_info "   Display status at date:   ${get_date}"
+  _msg_info "                 Get mode:   ${get_mode}"
+  _msg_info "                Get width:   ${width_get}"
+  _msg_info "               Get height:   ${height_get}"
+  _msg_info "            Physical size:   ${physical_size}"
 }
 
 # Show help usage, with an exit status.
@@ -183,20 +194,20 @@ _usage() {
       _usage_text << \
         ENDUSAGETEXT || true
 
-Get Android display status
+Returns Android display resolution in pixels.
 
 Usage:
-  $(_get "app" "name")
+  ${app_name}
     [options]
   options:
-     -m <method>          Method to obtain display status.
-                          Default: $(_get "get" "mode")
-     -p                   Whether to get physical size
-                          Default: $(_get "physical" "size")
-     -W                   Whether to get width
-                          Default: $(_get "width" "get")
-     -H                   Whether to get height
-                          Default: $(_get "height" "get")
+     -m <method>          Method to obtain display resolution.
+                          Default: ${get_mode}
+     -p                   Whether to get physical size.
+                          Default: ${physical_size}
+     -W                   Whether to get only the width.
+                          Default: ${width_get}
+     -H                   Whether to get only the height.
+                          Default: ${height_get}
 
      -h                   This message.
      -v                   Enable verbose output
@@ -238,23 +249,15 @@ while \
   esac
 done
 shift \
-  $(( \
+  $((
     OPTIND - 1 \
   ))
 _set_overrides
 app_opts=(
-  "$(_get \
-       "get" \
-       "mode")"
-  "$(_get \
-       "physical" \
-       "size")"
-  "$(_get \
-      "width" \
-       "get")"
-  "$(_get \
-       "height" \
-      "get")"
+  "${get_mode}"
+  "${physical_size}"
+  "${width_get}"
+  "${height_get}"
 )
 _show_config
 _display_resolution \
